@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>图片上传管理系统</title>
+    <title>文件上传管理系统</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* 样式保持不变 */
         * {
             margin: 0;
             padding: 0;
@@ -149,6 +151,11 @@
             margin-top: 2px;
         }
         
+        .module-size {
+            font-size: 0.7rem;
+            opacity: 0.6;
+        }
+        
         .module-delete {
             background: #ff4757;
             color: white;
@@ -212,6 +219,11 @@
             color: white;
         }
         
+        .btn-warning {
+            background: #ffa502;
+            color: white;
+        }
+        
         .content-area {
             background: white;
             border-radius: 10px;
@@ -269,6 +281,7 @@
             .upload-buttons {
                 flex-direction: row;
                 justify-content: center;
+                flex-wrap: wrap;
             }
         }
         
@@ -301,15 +314,42 @@
             background: #2ed573;
         }
         
+        .upload-btn.folder {
+            background: #9c88ff;
+        }
+        
         .file-input {
             display: none;
         }
         
-        .images-section {
+        .files-section {
             padding: 15px;
         }
         
-        .images-grid {
+        .file-type-tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .file-type-tab {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            background: #f1f2f6;
+            color: #666;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+        }
+        
+        .file-type-tab.active {
+            background: #4facfe;
+            color: white;
+        }
+        
+        .files-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
             gap: 8px;
@@ -317,33 +357,34 @@
         }
         
         @media (max-width: 480px) {
-            .images-grid {
+            .files-grid {
                 grid-template-columns: repeat(3, 1fr);
                 gap: 6px;
             }
         }
         
         @media (min-width: 768px) {
-            .images-grid {
+            .files-grid {
                 grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
                 gap: 10px;
             }
         }
         
-        .image-card {
+        .file-card {
             border: 1px solid #e9ecef;
             border-radius: 8px;
             overflow: hidden;
             transition: all 0.2s ease;
             background: white;
             aspect-ratio: 1;
+            position: relative;
         }
         
-        .image-card:active {
+        .file-card:active {
             transform: scale(0.95);
         }
         
-        .image-preview {
+        .file-preview {
             width: 100%;
             height: 100%;
             object-fit: cover;
@@ -351,26 +392,57 @@
             transition: opacity 0.3s ease;
         }
         
-        .image-preview.loading {
+        .file-preview.loading {
             opacity: 0.5;
         }
         
-        .image-info {
-            display: none; /* 隐藏详细信息，只显示缩略图 */
+        .file-icon {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: #666;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
         }
         
-        .image-actions {
+        .file-info-overlay {
             position: absolute;
             bottom: 0;
             left: 0;
             right: 0;
             background: linear-gradient(transparent, rgba(0,0,0,0.7));
             padding: 8px;
+            color: white;
+            font-size: 0.7rem;
             opacity: 0;
             transition: opacity 0.2s ease;
         }
         
-        .image-card:hover .image-actions {
+        .file-card:hover .file-info-overlay {
+            opacity: 1;
+        }
+        
+        .file-actions {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .select-checkbox {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            width: 18px;
+            height: 18px;
+            z-index: 3;
+            accent-color: #4facfe;
+        }
+        
+        .file-card:hover .file-actions {
             opacity: 1;
         }
         
@@ -383,6 +455,7 @@
             background: rgba(255,255,255,0.9);
             color: #333;
             min-height: 24px;
+            margin-left: 4px;
         }
         
         .btn-small:active {
@@ -417,9 +490,9 @@
         
         .progress-bar {
             width: 100%;
-            height: 4px;
+            height: 6px;
             background: #e9ecef;
-            border-radius: 2px;
+            border-radius: 3px;
             overflow: hidden;
             margin-top: 8px;
         }
@@ -428,6 +501,12 @@
             height: 100%;
             background: linear-gradient(90deg, #4facfe, #00f2fe);
             transition: width 0.3s ease;
+        }
+        
+        .chunk-progress {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 5px;
         }
         
         .empty-state {
@@ -442,81 +521,8 @@
             margin-bottom: 10px;
         }
         
-        /* 相机模态框优化 */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.95);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            padding: 10px;
-        }
-        
-        .camera-container {
-            width: 100%;
-            max-width: 400px;
-            background: #000;
-            border-radius: 12px;
-            overflow: hidden;
-            position: relative;
-        }
-        
-        .camera-preview {
-            width: 100%;
-            height: 60vh;
-            background: #000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .camera-preview video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transform: scaleX(-1); /* 镜像翻转，更自然 */
-        }
-        
-        .camera-controls {
-            padding: 15px;
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            background: rgba(0,0,0,0.8);
-        }
-        
-        .camera-btn {
-            padding: 12px 20px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            min-height: 44px;
-            min-width: 80px;
-            font-weight: 600;
-        }
-        
-        .capture-btn {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: white;
-            border: 4px solid #4facfe;
-            cursor: pointer;
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-        
-        /* 图片查看优化 */
-        .image-viewer {
+        /* 文件查看模态框 */
+        .file-viewer {
             position: fixed;
             top: 0;
             left: 0;
@@ -531,11 +537,31 @@
             padding: 10px;
         }
         
-        .image-viewer img {
-            max-width: 100%;
+        .file-viewer-content {
+            max-width: 90%;
             max-height: 80vh;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .file-viewer img {
+            max-width: 100%;
+            max-height: 70vh;
             object-fit: contain;
             border-radius: 8px;
+        }
+        
+        .file-details {
+            margin-top: 15px;
+            text-align: left;
+            color: #333;
+        }
+        
+        .file-detail-item {
+            margin: 5px 0;
+            font-size: 0.9rem;
         }
         
         .close-btn {
@@ -555,33 +581,85 @@
             justify-content: center;
             backdrop-filter: blur(10px);
         }
+
+        /* 图片查看器左右导航按钮 */
+        .viewer-nav-button {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.4);
+            color: white;
+            border: none;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1002;
+            backdrop-filter: blur(6px);
+        }
+        .viewer-nav-button.left { left: 12px; }
+        .viewer-nav-button.right { right: 12px; }
+        .viewer-nav-button:active { transform: translateY(-50%) scale(0.95); }
+        
+        /* 大文件上传提示 */
+        .large-file-notice {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 0.85rem;
+            color: #856404;
+        }
+        
+        /* 文件类型颜色 */
+        .file-type-image { color: #4facfe; }
+        .file-type-archive { color: #ff9f43; }
+        .file-type-document { color: #2ed573; }
+        .file-type-video { color: #ff4757; }
+        .file-type-audio { color: #9c88ff; }
+        .file-type-other { color: #747d8c; }
         
         /* 性能优化类 */
         .will-change {
             will-change: transform, opacity;
         }
         
-        .image-placeholder {
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(45deg, #f0f0f0 25%, transparent 25%), 
-                        linear-gradient(-45deg, #f0f0f0 25%, transparent 25%), 
-                        linear-gradient(45deg, transparent 75%, #f0f0f0 75%), 
-                        linear-gradient(-45deg, transparent 75%, #f0f0f0 75%);
-            background-size: 20px 20px;
-            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
-            animation: placeholder-shimmer 2s infinite linear;
-        }
-        
-        @keyframes placeholder-shimmer {
-            0% { background-position: -100px 0; }
-            100% { background-position: 100px 0; }
-        }
-        
-        /* 虚拟滚动容器 */
         .virtual-scroll {
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
+        }
+        
+        /* 上传队列 */
+        .upload-queue {
+            margin-top: 15px;
+        }
+        
+        .upload-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+        
+        .upload-item-info {
+            flex: 1;
+            margin-left: 10px;
+        }
+        
+        .upload-item-name {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .upload-item-size {
+            font-size: 0.8rem;
+            color: #666;
         }
     </style>
 </head>
@@ -589,12 +667,12 @@
     <div id="app">
         <div class="container">
             <div class="header">
-                <h1>📷 图片上传管理系统</h1>
-                <p>高性能缩略图展示</p>
+                <h1><i class="fas fa-cloud-upload-alt"></i> 文件上传管理系统</h1>
+                <p>支持多种文件类型和大文件分块上传</p>
                 <div class="stats">
                     <div class="stat-item">模块: {{ stats.total_modules || 0 }}</div>
-                    <div class="stat-item">图片: {{ stats.total_images || 0 }}</div>
-                    <div class="stat-item">大小: {{ stats.total_size_mb || 0 }} MB</div>
+                    <div class="stat-item">文件: {{ stats.total_files || 0 }}</div>
+                    <div class="stat-item">大小: {{ (stats.total_size_gb || 0).toFixed(2) }} GB</div>
                 </div>
             </div>
             
@@ -606,21 +684,27 @@
                         <div 
                             class="upload-area"
                             @click="triggerFileInput"
+                            @drop="handleDrop"
+                            @dragover.prevent
+                            @dragenter.prevent
                         >
-                            <div class="upload-icon">📁</div>
+                            <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
                             <div class="upload-text">
-                                <div>选择图片上传</div>
+                                <div>拖放文件到此处或点击选择</div>
                                 <div style="font-size: 0.8rem; margin-top: 5px; opacity: 0.7;">
-                                    自动压缩优化
+                                    支持图片、压缩包、文档、视频、音频等格式
                                 </div>
                             </div>
                             
                             <div class="upload-buttons">
-                                <button class="upload-btn gallery" @click.stop="openGallery">
-                                    📱 相册
+                                <button class="upload-btn gallery" @click.stop="openFileSelect">
+                                    <i class="fas fa-file"></i> 选择文件
+                                </button>
+                                <button class="upload-btn folder" @click.stop="openFolderSelect">
+                                    <i class="fas fa-folder"></i> 选择文件夹
                                 </button>
                                 <button class="upload-btn camera" @click.stop="openCamera">
-                                    📸 拍照
+                                    <i class="fas fa-camera"></i> 拍照
                                 </button>
                             </div>
                             
@@ -629,21 +713,46 @@
                                 ref="fileInput"
                                 class="file-input" 
                                 multiple 
-                                accept="image/*"
+                                :accept="fileAcceptTypes"
                                 @change="handleFileSelect"
                             >
                             <input 
                                 type="file" 
-                                ref="galleryInput"
+                                ref="folderInput"
                                 class="file-input" 
-                                multiple 
-                                accept="image/*"
-                                @change="handleFileSelect"
+                                webkitdirectory 
+                                multiple
+                                @change="handleFolderSelect"
                             >
                         </div>
                         
-                        <div v-if="uploadProgress > 0" class="progress-bar">
-                            <div class="progress" :style="{ width: uploadProgress + '%' }"></div>
+                        <!-- 大文件上传提示 -->
+                        <div v-if="hasLargeFiles" class="large-file-notice">
+                            <i class="fas fa-info-circle"></i>
+                            检测到大文件，将启用分块上传以确保稳定性
+                        </div>
+                        
+                        <!-- 上传队列 -->
+                        <div v-if="uploadQueue.length > 0" class="upload-queue">
+                            <div v-for="item in uploadQueue" :key="item.id" class="upload-item">
+                                <i :class="getFileTypeIcon(item.file)"></i>
+                                <div class="upload-item-info">
+                                    <div class="upload-item-name">{{ item.file.name }}</div>
+                                    <div class="upload-item-size">{{ formatFileSize(item.file.size) }}</div>
+                                    <div class="progress-bar">
+                                        <div class="progress" :style="{ width: item.progress + '%' }"></div>
+                                    </div>
+                                    <div v-if="item.chunkInfo" class="chunk-progress">
+                                        分块 {{ item.chunkInfo.current }}/{{ item.chunkInfo.total }}
+                                    </div>
+                                    <div v-if="item.error" class="error" style="margin-top: 5px; font-size: 0.7rem;">
+                                        {{ item.error }}
+                                    </div>
+                                </div>
+                                <button v-if="item.error" class="btn-small btn-warning" @click="retryUpload(item)" title="重试">
+                                    <i class="fas fa-redo"></i>
+                                </button>
+                            </div>
                         </div>
                         
                         <div v-if="uploadMessage" :class="['message', uploadSuccess ? 'success' : 'error']">
@@ -651,51 +760,101 @@
                         </div>
                     </div>
                     
-                    <!-- 图片展示区域 -->
-                    <div class="images-section">
+                    <!-- 文件展示区域 -->
+                    <div class="files-section">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                             <h3 style="font-size: 1rem; margin: 0;">
-                                {{ currentModule }} ({{ images.length }})
+                                {{ currentModule }} ({{ filteredFiles.length }})
                             </h3>
-                            <button v-if="images.length > 0" class="btn-small" @click="clearCache" style="background: #ffa502; color: white;">
-                                刷新缓存
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <button class="btn-small" @click="toggleSelectAll" :title="allSelected ? '取消全选' : '全选'" style="background: #6c5ce7; color: white;">
+                                    <i class="fas" :class="allSelected ? 'fa-square-check' : 'fa-square' "></i>
+                                </button>
+                                <button class="btn-small" @click="downloadSelectedFiles" style="background: #2d98da; color: white;">
+                                    <i class="fas fa-download"></i> 下载选中
+                                </button>
+                                <button class="btn-small" @click="deleteSelectedFiles" style="background: #ff4757; color: white;">
+                                    <i class="fas fa-trash"></i> 删除选中
+                                </button>
+                                <button class="btn-small" @click="clearCache" style="background: #ffa502; color: white;">
+                                    <i class="fas fa-sync"></i> 刷新
+                                </button>
+                                <button class="btn-small" @click="toggleViewMode" style="background: #4facfe; color: white;">
+                                    <i :class="viewMode === 'grid' ? 'fas fa-list' : 'fas fa-th'"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 文件类型筛选 -->
+                        <div class="file-type-tabs">
+                            <button 
+                                v-for="type in fileTypes" 
+                                :key="type.value"
+                                :class="['file-type-tab', { active: selectedFileType === type.value }]"
+                                @click="selectFileType(type.value)"
+                            >
+                                <i :class="type.icon"></i> {{ type.label }} ({{ getFileTypeCount(type.value) }})
                             </button>
                         </div>
                         
                         <div v-if="loading" class="loading">
-                            <div style="font-size: 1rem; margin-bottom: 8px;">⏳</div>
+                            <div style="font-size: 1rem; margin-bottom: 8px;"><i class="fas fa-spinner fa-spin"></i></div>
                             加载中...
                         </div>
                         
-                        <div v-else-if="images.length === 0" class="empty-state">
-                            <div class="empty-icon">🖼️</div>
-                            <div style="font-size: 0.9rem; margin-bottom: 6px;">暂无图片</div>
+                        <div v-else-if="filteredFiles.length === 0" class="empty-state">
+                            <div class="empty-icon"><i class="fas fa-folder-open"></i></div>
+                            <div style="font-size: 0.9rem; margin-bottom: 6px;">暂无文件</div>
                         </div>
                         
-                        <div v-else class="images-grid virtual-scroll" style="max-height: 60vh;">
+                        <div v-else class="files-grid virtual-scroll" style="max-height: 60vh;">
                             <div 
-                                v-for="image in visibleImages" 
-                                :key="image.filename" 
-                                class="image-card will-change"
-                                @click="viewImage(image)"
+                                v-for="file in filteredFiles" 
+                                :key="file.filename" 
+                                class="file-card will-change"
+                                @click="viewFile(file)"
                             >
-                                <img 
-                                    :src="getThumbnailUrl(image.url)" 
-                                    :alt="image.filename"
-                                    class="image-preview"
-                                    :class="{ loading: !image.loaded }"
-                                    @load="imageLoaded(image)"
-                                    @error="imageError(image)"
-                                    loading="lazy"
-                                    decoding="async"
-                                >
-                                <div class="image-actions">
+                                <input type="checkbox" class="select-checkbox" :checked="isSelected(file)" @click.stop="toggleSelectFile(file)">
+                                <div v-if="isImageFile(file)" class="file-preview-container">
+                                    <img 
+                                        :src="getFileUrl(file.url)" 
+                                        :alt="file.filename"
+                                        class="file-preview"
+                                        :class="{ loading: !file.loaded }"
+                                        @load="fileLoaded(file)"
+                                        @error="fileError(file)"
+                                        loading="lazy"
+                                        decoding="async"
+                                    >
+                                </div>
+                                <div v-else class="file-icon" :class="'file-type-' + file.file_type">
+                                    <i :class="getFileIcon(file.file_type)"></i>
+                                </div>
+                                
+                                <div class="file-info-overlay">
+                                    {{ formatFileSize(file.size) }}
+                                </div>
+                                
+                                <div class="file-actions">
                                     <button 
                                         class="btn-small btn-danger"
-                                        @click.stop="deleteImage(image)"
-                                    >删除</button>
+                                        @click.stop="deleteFile(file)"
+                                        title="删除文件"
+                                    >
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    <button 
+                                        class="btn-small btn-primary"
+                                        @click.stop="downloadFile(file)"
+                                        title="下载文件"
+                                    >
+                                        <i class="fas fa-download"></i>
+                                    </button>
                                 </div>
                             </div>
+                        </div>
+                        <div v-if="filteredFiles.length > visibleCount" style="text-align:center; margin-top:8px;">
+                            <button class="btn btn-primary" @click="loadMoreFiles">加载更多</button>
                         </div>
                     </div>
                 </div>
@@ -706,38 +865,107 @@
                         <input 
                             v-model="newModuleName" 
                             @keyup.enter="createModule"
-                            placeholder="新模块"
-                            maxlength="12"
+                            placeholder="新模块名称"
+                            maxlength="20"
                         >
-                        <button class="btn btn-primary" @click="createModule" style="min-width: 50px; padding: 10px;">+</button>
+                        <button class="btn btn-primary" @click="createModule" style="min-width: 50px; padding: 10px;">
+                            <i class="fas fa-plus"></i>
+                        </button>
                     </div>
                     
                     <div class="module-list">
+                        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+                            <label style="font-size:12px; color:#666;">分片并发:</label>
+                            <input type="number" v-model.number="chunkUploadConcurrency" min="1" max="10" style="width:60px; padding:6px; border-radius:6px; border:1px solid #e9ecef;" />
+                        </div>
                         <div 
                             v-for="module in modules" 
                             :key="module.name"
-                            :class="['module-item', { active: currentModule === module.name }]"
-                            @click="selectModule(module.name)"
+                            class="module-item"
                         >
-                            <div class="module-info">
-                                <div class="module-name">{{ module.name }}</div>
-                                <div class="module-count">{{ module.image_count }} 张</div>
+                            <div style="display:flex; gap:8px; align-items:center; width:100%;">
+                                <button class="btn" style="padding:6px; font-size:12px;" @click.stop="toggleModule(module.name)">
+                                    <i :class="module._expanded ? 'fas fa-chevron-down' : 'fas fa-chevron-right'"></i>
+                                </button>
+                                <div class="module-info" @click="selectModule(module.name)" :class="{ 'active': currentModule === module.name }" style="flex:1;">
+                                    <div class="module-name">
+                                        <i class="fas fa-folder"></i> {{ module.name }}
+                                    </div>
+                                    <div class="module-count">{{ module.file_count }} 个文件</div>
+                                    <div class="module-size">{{ formatFileSize(module.total_size) }}</div>
+                                </div>
+
+                                <div style="display:flex; gap:6px; align-items:center;">
+                                    <button class="btn" style="padding:6px 8px; font-size:12px;" @click.stop="createSubmodule(module.name)" title="添加子模块">子模块</button>
+                                    <button 
+                                        v-if="module.name !== 'default'" 
+                                        class="module-delete"
+                                        @click.stop="deleteModule(module.name)"
+                                        title="删除模块"
+                                    >
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
                             </div>
-                            <button 
-                                v-if="module.name !== 'default'" 
-                                class="module-delete"
-                                @click.stop="deleteModule(module.name)"
-                            >×</button>
+
+                            <!-- 子模块列表 -->
+                            <div v-if="module._expanded" style="margin-top:8px; margin-left:36px;">
+                                <div v-if="module._loading">加载中...</div>
+                                <div v-else>
+                                    <div v-if="(module._submodules || []).length === 0" style="font-size:12px; color:#888;">(无子模块)</div>
+                                    <div v-for="sub in module._submodules" :key="sub" class="module-item" :class="{ active: currentModule === (module.name + '/' + sub) }" style="margin:6px 0; padding:8px; background:#fbfdff;">
+                                        <div class="module-info" style="flex:1;" @click="selectSubmodule(module.name, sub)">
+                                            <div class="module-name"><i class="fas fa-folder-open"></i> {{ sub }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         
-        <!-- 图片查看模态框 -->
-        <div v-if="viewingImage" class="image-viewer" @click="viewingImage = null">
-            <button class="close-btn" @click.stop="viewingImage = null">×</button>
-            <img :src="getImageUrl(viewingImage.url)" @click.stop>
+        <!-- 文件查看模态框 -->
+        <div v-if="viewingFile" class="file-viewer" tabindex="0" @click="viewingFile = null" @keydown="onViewerKeydown" @touchstart.passive="onViewerTouchStart" @touchmove.passive="onViewerTouchMove" @touchend.passive="onViewerTouchEnd">
+            <button class="viewer-nav-button left" @click.stop="prevImage" title="上一张">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <button class="viewer-nav-button right" @click.stop="nextImage" title="下一张">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+
+            <button class="close-btn" @click.stop="viewingFile = null">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="file-viewer-content" @click.stop>
+                <div v-if="isImageFile(viewingFile)">
+                    <img :src="getFileUrl(viewingFile.url)" :alt="viewingFile.filename">
+                </div>
+                <div v-else>
+                    <div class="file-icon" :class="'file-type-' + viewingFile.file_type" style="font-size: 4rem; margin: 20px 0;">
+                        <i :class="getFileIcon(viewingFile.file_type)"></i>
+                    </div>
+                    <h3>{{ viewingFile.filename }}</h3>
+                </div>
+                
+                <div class="file-details">
+                    <div class="file-detail-item"><strong>文件名:</strong> {{ viewingFile.filename }}</div>
+                    <div class="file-detail-item"><strong>类型:</strong> {{ getFileTypeName(viewingFile.file_type) }}</div>
+                    <div class="file-detail-item"><strong>大小:</strong> {{ formatFileSize(viewingFile.size) }}</div>
+                    <div class="file-detail-item"><strong>上传时间:</strong> {{ viewingFile.upload_time }}</div>
+                    <div class="file-detail-item"><strong>模块:</strong> {{ viewingFile.module }}</div>
+                </div>
+                
+                <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
+                    <button class="btn btn-primary" @click="downloadFile(viewingFile)">
+                        <i class="fas fa-download"></i> 下载文件
+                    </button>
+                    <button class="btn btn-danger" @click="deleteFile(viewingFile)">
+                        <i class="fas fa-trash"></i> 删除文件
+                    </button>
+                </div>
+            </div>
         </div>
         
         <!-- 相机模态框 -->
@@ -748,7 +976,9 @@
                 </div>
                 <div class="capture-btn" @click="takePhoto"></div>
                 <div class="camera-controls">
-                    <button class="camera-btn btn-danger" @click="closeCamera">取消</button>
+                    <button class="camera-btn btn-danger" @click="closeCamera">
+                        <i class="fas fa-times"></i> 取消
+                    </button>
                 </div>
             </div>
             <canvas ref="canvas" style="display: none;"></canvas>
@@ -761,21 +991,62 @@
         createApp({
             data() {
                 return {
+                    // 前端分页设置
+                    pageSize: 30,
+                    visibleCount: 30,
+                    // 上传并发配置
+                    chunkUploadConcurrency: 3,
+                    // 进度更新节流标记
+                    _lastProgressUpdate: 0,
                     modules: [],
                     currentModule: 'default',
                     newModuleName: '',
-                    images: [],
-                    visibleImages: [],
+                    files: [],
+                    filteredFiles: [],
                     loading: false,
                     uploadProgress: 0,
                     uploadMessage: '',
                     uploadSuccess: false,
-                    viewingImage: null,
+                    viewingFile: null,
                     showCamera: false,
                     stats: {},
                     stream: null,
-                    imageCache: new Map(),
-                    scrollTop: 0
+                    fileCache: new Map(),
+                    selectedFileType: 'all',
+                    viewMode: 'grid',
+                    uploadQueue: [],
+                            // 已选中的文件（filename 列表），用于批量删除
+                            selectedFiles: [],
+                    chunkSize: 5 * 1024 * 1024, // 5MB 分块大小，与后端 CHUNK_SIZE 保持一致
+            // 图片查看器相关状态
+            currentIndex: -1,
+            touchStartX: 0,
+            touchDeltaX: 0,
+                    
+                    fileTypes: [
+                        { value: 'all', label: '全部', icon: 'fas fa-file' },
+                        { value: 'image', label: '图片', icon: 'fas fa-image' },
+                        { value: 'archive', label: '压缩包', icon: 'fas fa-file-archive' },
+                        { value: 'document', label: '文档', icon: 'fas fa-file-alt' },
+                        { value: 'video', label: '视频', icon: 'fas fa-video' },
+                        { value: 'audio', label: '音频', icon: 'fas fa-music' },
+                        { value: 'other', label: '其他', icon: 'fas fa-file' }
+                    ],
+                    
+                    fileAcceptTypes: "image/*,application/zip,application/x-rar-compressed,application/x-7z-compressed,application/x-tar,application/gzip,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,video/*,audio/*"
+                }
+            },
+            
+            computed: {
+                hasLargeFiles() {
+                    return this.uploadQueue.some(item => item.file.size > this.chunkSize);
+                }
+                ,
+                allSelected() {
+                    return this.filteredFiles.length > 0 && this.filteredFiles.every(f => this.selectedFiles.includes(f.filename));
+                },
+                visibleFiles() {
+                    return this.filteredFiles.slice(0, this.visibleCount);
                 }
             },
             
@@ -784,64 +1055,11 @@
                 await this.loadStats();
                 if (this.modules.length > 0) {
                     this.currentModule = this.modules[0].name;
-                    await this.loadImages();
+                    await this.loadFiles();
                 }
-                
-                this.setupPerformance();
             },
             
             methods: {
-                // 性能优化设置
-                setupPerformance() {
-                    // 使用 Intersection Observer 实现懒加载
-                    if ('IntersectionObserver' in window) {
-                        this.observer = new IntersectionObserver((entries) => {
-                            entries.forEach(entry => {
-                                if (entry.isIntersecting) {
-                                    const img = entry.target;
-                                    const src = img.getAttribute('data-src');
-                                    if (src) {
-                                        img.src = src;
-                                        img.removeAttribute('data-src');
-                                    }
-                                    this.observer.unobserve(img);
-                                }
-                            });
-                        }, {
-                            rootMargin: '50px 0px',
-                            threshold: 0.1
-                        });
-                    }
-                    
-                    // 防抖滚动处理
-                    this.handleScroll = this.debounce(() => {
-                        this.updateVisibleImages();
-                    }, 50);
-                    
-                    window.addEventListener('scroll', this.handleScroll, { passive: true });
-                },
-                
-                // 防抖函数
-                debounce(func, wait) {
-                    let timeout;
-                    return function executedFunction(...args) {
-                        const later = () => {
-                            clearTimeout(timeout);
-                            func(...args);
-                        };
-                        clearTimeout(timeout);
-                        timeout = setTimeout(later, wait);
-                    };
-                },
-                
-                // 更新可见图片（虚拟滚动）
-                updateVisibleImages() {
-                    // 简单的虚拟滚动实现
-                    const startIndex = 0;
-                    const endIndex = Math.min(startIndex + 50, this.images.length);
-                    this.visibleImages = this.images.slice(startIndex, endIndex);
-                },
-                
                 // API 基础方法
                 async apiCall(url, options = {}) {
                     try {
@@ -853,6 +1071,10 @@
                             },
                             ...options
                         });
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
                         
                         const data = await response.json();
                         return data;
@@ -867,11 +1089,40 @@
                     try {
                         const data = await this.apiCall('/modules');
                         if (data.success) {
-                            this.modules = data.data;
+                            // 初始化扩展字段并占位子模块
+                            this.modules = data.data.map(m => ({ ...m, _expanded: false, _submodules: [], _loading: false }));
                         }
                     } catch (error) {
                         this.showError('加载模块失败');
                     }
+                },
+
+                // 切换模块展开/折叠并按需加载子模块
+                async toggleModule(moduleName) {
+                    const module = this.modules.find(m => m.name === moduleName);
+                    if (!module) return;
+                    module._expanded = !module._expanded;
+                    if (module._expanded && (!module._submodules || module._submodules.length === 0)) {
+                        module._loading = true;
+                        try {
+                            const data = await this.apiCall(`/modules/${encodeURIComponent(moduleName)}/submodules`);
+                            if (data.success) {
+                                module._submodules = data.data || [];
+                            } else {
+                                this.showError('加载子模块失败');
+                            }
+                        } catch (err) {
+                            this.showError('加载子模块失败');
+                        } finally {
+                            module._loading = false;
+                        }
+                    }
+                },
+
+                // 选择子模块作为当前模块（module/submodule）
+                async selectSubmodule(moduleName, submoduleName) {
+                    this.currentModule = `${moduleName}/${submoduleName}`;
+                    await this.loadFiles();
                 },
                 
                 // 加载统计信息
@@ -914,7 +1165,7 @@
                 
                 // 删除模块
                 async deleteModule(moduleName) {
-                    if (!confirm(`确定要删除模块 "${moduleName}" 吗？`)) {
+                    if (!confirm(`确定要删除模块 "${moduleName}" 吗？此操作不可恢复！`)) {
                         return;
                     }
                     
@@ -928,7 +1179,7 @@
                             await this.loadStats();
                             if (this.currentModule === moduleName) {
                                 this.currentModule = this.modules[0]?.name || '';
-                                await this.loadImages();
+                                await this.loadFiles();
                             }
                             this.showSuccess('模块删除成功');
                         } else {
@@ -942,31 +1193,99 @@
                 // 选择模块
                 async selectModule(moduleName) {
                     this.currentModule = moduleName;
-                    await this.loadImages();
+                    await this.loadFiles();
+                },
+
+                // 创建子模块
+                async createSubmodule(moduleName) {
+                    const name = prompt(`在模块 '${moduleName}' 下创建子模块，输入子模块名称:`);
+                    if (!name) return;
+                    const trimmed = name.trim();
+                    if (!trimmed) {
+                        this.showError('子模块名称不能为空');
+                        return;
+                    }
+
+                    try {
+                        const data = await this.apiCall(`/modules/${moduleName}/submodules`, {
+                            method: 'POST',
+                            body: JSON.stringify({ name: trimmed })
+                        });
+                        if (data.success) {
+                            // 刷新模块列表并自动切换到新创建的子模块
+                            await this.loadModules();
+                            this.showSuccess('子模块创建成功');
+                            // 展开父模块并刷新子模块列表
+                            const parent = this.modules.find(m => m.name === moduleName);
+                            if (parent) {
+                                parent._expanded = true;
+                                parent._loading = true;
+                                const subsResp = await this.apiCall(`/modules/${encodeURIComponent(moduleName)}/submodules`);
+                                parent._loading = false;
+                                if (subsResp.success) {
+                                    parent._submodules = subsResp.data || [];
+                                }
+                            }
+                            // 切换为新子模块并加载文件
+                            this.currentModule = `${moduleName}/${trimmed}`;
+                            await this.loadFiles();
+                        } else {
+                            this.showError(data.message);
+                        }
+                    } catch (err) {
+                        this.showError('创建子模块失败');
+                    }
                 },
                 
-                // 加载图片列表
-                async loadImages() {
+                // 加载文件列表
+                async loadFiles() {
                     if (!this.currentModule) return;
                     
                     this.loading = true;
                     try {
-                        const data = await this.apiCall(`/images/${this.currentModule}`);
+                        const encodedModulePath = this.encodeModulePath(this.currentModule);
+                        const data = await this.apiCall(`/files/${encodedModulePath}`);
                         if (data.success) {
-                            // 标记图片加载状态
-                            this.images = data.data.map(img => ({
-                                ...img,
+                            this.files = data.data.map(file => ({
+                                ...file,
                                 loaded: false
                             }));
-                            this.updateVisibleImages();
+                            this.filterFiles();
                         } else {
                             this.showError(data.message);
                         }
                     } catch (error) {
-                        this.showError('加载图片失败');
+                        this.showError('加载文件失败');
                     } finally {
                         this.loading = false;
                     }
+                },
+
+                // 将 module 路径按段进行 URI 编码，保留 '/' 分隔符
+                encodeModulePath(modulePath) {
+                    if (!modulePath) return '';
+                    return modulePath.split('/').map(seg => encodeURIComponent(seg)).join('/');
+                },
+                
+                // 筛选文件
+                filterFiles() {
+                    if (this.selectedFileType === 'all') {
+                        this.filteredFiles = this.files;
+                    } else {
+                        this.filteredFiles = this.files.filter(file => file.file_type === this.selectedFileType);
+                    }
+                },
+                
+                // 选择文件类型
+                selectFileType(type) {
+                    this.selectedFileType = type;
+                    this.filterFiles();
+                },
+                
+                // 获取文件类型数量
+                getFileTypeCount(type) {
+                    if (type === 'all') return this.files.length;
+                    return this.files.filter(file => file.file_type === type).length;
                 },
                 
                 // 触发文件选择
@@ -974,146 +1293,318 @@
                     this.$refs.fileInput.click();
                 },
                 
-                // 打开相册选择
-                openGallery() {
-                    this.$refs.galleryInput.click();
+                // 打开文件选择
+                openFileSelect() {
+                    this.$refs.fileInput.click();
+                },
+                
+                // 打开文件夹选择
+                openFolderSelect() {
+                    this.$refs.folderInput.click();
                 },
                 
                 // 处理文件选择
                 async handleFileSelect(event) {
-                    const files = event.target.files;
+                    const files = Array.from(event.target.files);
                     if (files.length > 0) {
-                        await this.uploadFiles(files);
+                        await this.processFiles(files);
                     }
                     event.target.value = '';
                 },
                 
-                // 上传文件（优化版）
-                async uploadFiles(files) {
+                // 处理文件夹选择
+                async handleFolderSelect(event) {
+                    const files = Array.from(event.target.files);
+                    if (files.length > 0) {
+                        await this.processFiles(files);
+                    }
+                    event.target.value = '';
+                },
+                
+                // 处理拖放文件
+                handleDrop(event) {
+                    event.preventDefault();
+                    const files = Array.from(event.dataTransfer.files);
+                    if (files.length > 0) {
+                        this.processFiles(files);
+                    }
+                },
+                
+                // 处理文件上传
+                async processFiles(files) {
                     if (!this.currentModule) {
                         this.showError('请先选择模块');
                         return;
                     }
                     
-                    this.uploadProgress = 0;
-                    this.uploadMessage = '';
+                    console.log('开始处理文件上传:', files);
                     
-                    const formData = new FormData();
-                    let validFiles = 0;
+                    // 添加上传队列
+                    files.forEach(file => {
+                        this.uploadQueue.push({
+                            id: Date.now() + Math.random(),
+                            file: file,
+                            progress: 0,
+                            chunkInfo: null,
+                            error: null
+                        });
+                    });
                     
-                    // 使用 Promise.all 并行处理文件压缩
-                    const processPromises = Array.from(files).map(async (file) => {
-                        if (!file.type.startsWith('image/')) {
-                            this.showError(`文件 "${file.name}" 不是图片格式`);
-                            return null;
+                    // 逐个上传文件
+                    for (const item of this.uploadQueue.slice()) {
+                        await this.uploadFile(item);
+                    }
+                },
+                
+                // 上传单个文件（支持分块上传）
+                async uploadFile(uploadItem) {
+                    const file = uploadItem.file;
+                    const fileSize = file.size;
+                    
+                    try {
+                        console.log(`开始上传文件: ${file.name}, 大小: ${fileSize} bytes`);
+                        
+                        // 小文件直接上传，大文件使用分块上传
+                        if (fileSize <= this.chunkSize) {
+                            await this.uploadSingleFile(uploadItem);
+                        } else {
+                            await this.uploadFileInChunks(uploadItem);
                         }
                         
-                        // 快速压缩：只压缩大文件
-                        if (file.size > 2 * 1024 * 1024) {
-                            try {
-                                return await this.quickCompressImage(file);
-                            } catch (error) {
-                                console.warn('压缩失败，使用原文件:', error);
-                                return file;
+                        // 上传完成后从队列移除
+                        this.uploadQueue = this.uploadQueue.filter(item => item.id !== uploadItem.id);
+                        
+                        // 刷新文件列表和统计
+                        await this.loadFiles();
+                        await this.loadStats();
+                        
+                        console.log(`文件上传成功: ${file.name}`);
+                        
+                    } catch (error) {
+                        console.error('文件上传失败:', error);
+                        uploadItem.error = error.message || '上传失败';
+                        this.showError(`文件 "${file.name}" 上传失败: ${error.message}`);
+                    }
+                },
+                
+                // 单文件上传 - 修复版本
+                async uploadSingleFile(uploadItem) {
+                    const formData = new FormData();
+                    // 修复：使用 'file' 而不是 'files'，与后端匹配
+                    formData.append('file', uploadItem.file);
+                    
+                    const baseUrl = window.location.origin;
+                    
+                    return new Promise((resolve, reject) => {
+                        const xhr = new XMLHttpRequest();
+                        
+                        xhr.upload.addEventListener('progress', (e) => {
+                            if (e.lengthComputable) {
+                                const now = Date.now();
+                                if (now - this._lastProgressUpdate > 100) { // 每100ms更新一次 UI
+                                    uploadItem.progress = (e.loaded / e.total) * 100;
+                                    this._lastProgressUpdate = now;
+                                }
                             }
-                        }
-                        return file;
+                        });
+                        
+                        xhr.addEventListener('load', () => {
+                            console.log('上传响应状态:', xhr.status, '响应:', xhr.responseText);
+                            
+                            if (xhr.status === 200) {
+                                try {
+                                    const response = JSON.parse(xhr.responseText);
+                                    if (response.success) {
+                                        resolve();
+                                    } else {
+                                        reject(new Error(response.message || '上传失败'));
+                                    }
+                                } catch (e) {
+                                    reject(new Error('响应解析失败'));
+                                }
+                            } else {
+                                reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
+                            }
+                        });
+                        
+                        xhr.addEventListener('error', () => {
+                            reject(new Error('网络错误，请检查连接'));
+                        });
+                        
+                        xhr.addEventListener('timeout', () => {
+                            reject(new Error('上传超时'));
+                        });
+                        
+                        xhr.timeout = 30000; // 30秒超时
+                        
+                        const url = `${baseUrl}/api/upload?module=${encodeURIComponent(this.currentModule)}`;
+                        console.log('上传URL:', url);
+                        xhr.open('POST', url);
+                        xhr.send(formData);
                     });
-                    
-                    const processedFiles = await Promise.all(processPromises);
-                    
-                    processedFiles.forEach(file => {
-                        if (file) {
-                            formData.append('files', file);
-                            validFiles++;
+                },
+                
+                // 分块上传大文件
+                async uploadFileInChunks(uploadItem) {
+                    const file = uploadItem.file;
+                    const totalChunks = Math.ceil(file.size / this.chunkSize);
+                    const fileName = file.name;
+                    console.log(`开始分块上传: ${fileName}, 总分块数: ${totalChunks}`);
+
+                    // 查询已上传的分片（断点续传）
+                    let uploadedChunks = [];
+                    try {
+                        uploadedChunks = await this.checkUploadedChunks(fileName, file.size);
+                        if (!Array.isArray(uploadedChunks)) uploadedChunks = [];
+                    } catch (e) {
+                        console.warn('检查已上传分片失败，继续全部上传', e);
+                        uploadedChunks = [];
+                    }
+
+                    // 上传所有分块（跳过已存在的分片）
+                    // 并发上传分块：使用池化并发，受 config.max_concurrent_chunks 控制
+                    const maxConcurrent = Math.max(1, this.chunkUploadConcurrency || 3);
+                    const tasks = [];
+
+                    for (let chunkNumber = 0; chunkNumber < totalChunks; chunkNumber++) {
+                        if (uploadedChunks.includes(chunkNumber)) {
+                            // 标记为已完成
+                            uploadItem.progress = ((chunkNumber + 1) / totalChunks) * 100;
+                            uploadItem.chunkInfo = { current: chunkNumber + 1, total: totalChunks };
+                            continue;
                         }
-                    });
-                    
-                    if (validFiles === 0) {
-                        this.showError('没有有效的图片文件');
-                        return;
+
+                        const task = async () => {
+                            const chunk = file.slice(
+                                chunkNumber * this.chunkSize,
+                                Math.min((chunkNumber + 1) * this.chunkSize, file.size)
+                            );
+                            const chunkFormData = new FormData();
+                            chunkFormData.append('chunk', chunk);
+
+                            const baseUrl = window.location.origin;
+
+                            // 重试逻辑
+                            const maxAttempts = 3;
+                            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                                try {
+                                    await new Promise((resolve, reject) => {
+                                        const xhr = new XMLHttpRequest();
+                                        xhr.upload.addEventListener('progress', (e) => {
+                                            if (e.lengthComputable) {
+                                                    const now = Date.now();
+                                                    if (now - this._lastProgressUpdate > 100) {
+                                                        const chunkProgress = (e.loaded / e.total) * (100 / totalChunks);
+                                                        // 合并进度展示
+                                                        uploadItem.progress = Math.min(100, ((chunkNumber) * (100 / totalChunks)) + chunkProgress);
+                                                        this._lastProgressUpdate = now;
+                                                    }
+                                            }
+                                        });
+
+                                        xhr.addEventListener('load', () => {
+                                            if (xhr.status === 200) {
+                                                try {
+                                                    const response = JSON.parse(xhr.responseText);
+                                                    if (response.success) {
+                                                        uploadItem.chunkInfo = { current: chunkNumber + 1, total: totalChunks };
+                                                        resolve();
+                                                    } else {
+                                                        reject(new Error(response.message || `分块 ${chunkNumber + 1} 上传失败`));
+                                                    }
+                                                } catch (e) {
+                                                    reject(new Error('分块响应解析失败'));
+                                                }
+                                            } else {
+                                                reject(new Error(`分块 ${chunkNumber + 1} 上传失败: HTTP ${xhr.status}`));
+                                            }
+                                        });
+
+                                        xhr.addEventListener('error', () => reject(new Error('网络错误')));
+                                        xhr.addEventListener('timeout', () => reject(new Error('分块上传超时')));
+                                        xhr.timeout = 30000;
+
+                                        const url = `${baseUrl}/api/upload/chunk?filename=${encodeURIComponent(fileName)}&module=${encodeURIComponent(this.currentModule)}&chunk_number=${chunkNumber}&total_chunks=${totalChunks}`;
+                                        xhr.open('POST', url);
+                                        xhr.send(chunkFormData);
+                                    });
+                                    // 上传成功
+                                    return;
+                                } catch (err) {
+                                    if (attempt === maxAttempts) throw err;
+                                    const backoff = Math.pow(2, attempt) * 500;
+                                    await new Promise(r => setTimeout(r, backoff));
+                                }
+                            }
+                        };
+
+                        tasks.push(task);
+                    }
+
+                    // 并发池：每次运行最多 maxConcurrent 个任务
+                    const pool = [];
+                    while (tasks.length || pool.length) {
+                        while (pool.length < maxConcurrent && tasks.length) {
+                            const t = tasks.shift();
+                            const p = t().then(() => {
+                                // 从池中移除
+                                const idx = pool.indexOf(p);
+                                if (idx >= 0) pool.splice(idx, 1);
+                            });
+                            pool.push(p);
+                        }
+                        if (pool.length) await Promise.race(pool);
                     }
                     
-                    this.uploadWithProgress(formData, validFiles);
-                },
-                
-                // 快速图片压缩
-                quickCompressImage(file) {
-                    return new Promise((resolve) => {
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-                        const img = new Image();
-                        
-                        img.onload = () => {
-                            // 快速压缩：固定缩放到 1200px
-                            const maxSize = 1200;
-                            let { width, height } = img;
-                            
-                            if (width > height && width > maxSize) {
-                                height = (height * maxSize) / width;
-                                width = maxSize;
-                            } else if (height > maxSize) {
-                                width = (width * maxSize) / height;
-                                height = maxSize;
-                            }
-                            
-                            canvas.width = width;
-                            canvas.height = height;
-                            
-                            ctx.drawImage(img, 0, 0, width, height);
-                            
-                            canvas.toBlob((blob) => {
-                                resolve(new File([blob], file.name, {
-                                    type: 'image/jpeg',
-                                    lastModified: Date.now()
-                                }));
-                            }, 'image/jpeg', 0.7); // 较低质量，更快压缩
-                        };
-                        
-                        img.src = URL.createObjectURL(file);
-                    });
-                },
-                
-                // 带进度条的上传
-                uploadWithProgress(formData, fileCount) {
-                    const baseUrl = window.location.origin;
-                    const xhr = new XMLHttpRequest();
+                    // 所有分块上传完成，合并文件
+                    console.log('所有分块上传完成，开始合并文件');
+                    const mergeData = {
+                        filename: fileName,
+                        module: this.currentModule,
+                        chunk_number: 0,
+                        total_chunks: totalChunks,
+                        chunk_size: this.chunkSize
+                    };
                     
-                    xhr.upload.addEventListener('progress', (e) => {
-                        if (e.lengthComputable) {
-                            this.uploadProgress = (e.loaded / e.total) * 100;
+                    const result = await this.apiCall('/upload/merge', {
+                        method: 'POST',
+                        body: JSON.stringify(mergeData)
+                    });
+                    
+                    if (!result.success) {
+                        throw new Error(result.message || '文件合并失败');
+                    }
+                },
+
+                // 检查已上传的分片，用于断点续传
+                async checkUploadedChunks(filename, total_size) {
+                    try {
+                        const data = await this.apiCall('/upload/check', {
+                            method: 'POST',
+                            body: JSON.stringify({ filename, module: this.currentModule, file_hash: '', total_size })
+                        });
+
+                        if (data.success) {
+                            const d = data.data;
+                            if (d && Array.isArray(d.uploaded_chunks)) return d.uploaded_chunks;
+                            return [];
                         }
-                    });
-                    
-                    xhr.addEventListener('load', async () => {
-                        if (xhr.status === 200) {
-                            const data = JSON.parse(xhr.responseText);
-                            if (data.success) {
-                                this.uploadSuccess = true;
-                                this.uploadMessage = `成功上传 ${fileCount} 张图片`;
-                                await this.loadImages();
-                                await this.loadStats();
-                                setTimeout(() => {
-                                    this.uploadProgress = 0;
-                                    this.uploadMessage = '';
-                                }, 2000);
-                            } else {
-                                this.showError(data.message);
-                            }
-                        } else {
-                            this.showError('上传失败');
-                        }
-                    });
-                    
-                    xhr.addEventListener('error', () => {
-                        this.showError('网络错误');
-                    });
-                    
-                    xhr.open('POST', `${baseUrl}/api/upload?module=${this.currentModule}`);
-                    xhr.send(formData);
+                        return [];
+                    } catch (e) {
+                        console.error('检查已上传分片失败', e);
+                        return [];
+                    }
                 },
                 
-                // 打开相机（优化版）
+                // 重试上传
+                async retryUpload(uploadItem) {
+                    uploadItem.error = null;
+                    uploadItem.progress = 0;
+                    uploadItem.chunkInfo = null;
+                    await this.uploadFile(uploadItem);
+                },
+                
+                // 打开相机
                 async openCamera() {
                     if (!this.currentModule) {
                         this.showError('请先选择模块');
@@ -1121,7 +1612,6 @@
                     }
                     
                     try {
-                        // 使用较低的分辨率提高性能
                         this.stream = await navigator.mediaDevices.getUserMedia({ 
                             video: { 
                                 facingMode: 'environment',
@@ -1147,16 +1637,14 @@
                     this.showCamera = false;
                 },
                 
-                // 拍照（优化版）
+                // 拍照
                 takePhoto() {
                     const video = this.$refs.video;
                     const canvas = this.$refs.canvas;
                     const context = canvas.getContext('2d');
                     
-                    // 使用较低分辨率拍照
-                    canvas.width = 1024;
-                    canvas.height = 768;
-                    
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
                     context.drawImage(video, 0, 0, canvas.width, canvas.height);
                     
                     canvas.toBlob(async (blob) => {
@@ -1164,31 +1652,110 @@
                             type: 'image/jpeg' 
                         });
                         
-                        await this.uploadFiles([file]);
+                        await this.processFiles([file]);
                         this.closeCamera();
                     }, 'image/jpeg', 0.8);
                 },
                 
-                // 查看图片
-                viewImage(image) {
-                    this.viewingImage = image;
+                // 查看文件（打开模态并设置索引）
+                viewFile(file) {
+                    // find index in filteredFiles first, fallback to files
+                    const idx = this.filteredFiles.findIndex(f => f.filename === file.filename);
+                    if (idx !== -1) {
+                        this.currentIndex = idx;
+                    } else {
+                        const idx2 = this.files.findIndex(f => f.filename === file.filename);
+                        this.currentIndex = idx2;
+                    }
+                    this.viewingFile = file;
+                    this.$nextTick(() => {
+                        // 聚焦到模态以接收键盘事件
+                        const viewer = document.querySelector('.file-viewer');
+                        if (viewer) viewer.focus();
+                    });
+                },
+
+                setViewingByIndex(idx) {
+                    if (idx < 0) return;
+                    const list = this.filteredFiles.length > 0 ? this.filteredFiles : this.files;
+                    if (idx >= list.length) return;
+                    this.currentIndex = idx;
+                    this.viewingFile = list[idx];
+                    this.$nextTick(() => {
+                        const viewer = document.querySelector('.file-viewer');
+                        if (viewer) viewer.focus();
+                    });
+                },
+
+                prevImage() {
+                    const list = this.filteredFiles.length > 0 ? this.filteredFiles : this.files;
+                    if (!list.length) return;
+                    const newIdx = (this.currentIndex - 1 + list.length) % list.length;
+                    this.setViewingByIndex(newIdx);
+                },
+
+                nextImage() {
+                    const list = this.filteredFiles.length > 0 ? this.filteredFiles : this.files;
+                    if (!list.length) return;
+                    const newIdx = (this.currentIndex + 1) % list.length;
+                    this.setViewingByIndex(newIdx);
+                },
+
+                onViewerKeydown(e) {
+                    if (!this.viewingFile) return;
+                    if (e.key === 'ArrowLeft') {
+                        e.preventDefault();
+                        this.prevImage();
+                    } else if (e.key === 'ArrowRight') {
+                        e.preventDefault();
+                        this.nextImage();
+                    } else if (e.key === 'Escape') {
+                        this.viewingFile = null;
+                    }
+                },
+
+                onViewerTouchStart(e) {
+                    if (!e.touches || e.touches.length === 0) return;
+                    this.touchStartX = e.touches[0].clientX;
+                    this.touchDeltaX = 0;
+                },
+
+                onViewerTouchMove(e) {
+                    if (!e.touches || e.touches.length === 0) return;
+                    const currentX = e.touches[0].clientX;
+                    this.touchDeltaX = currentX - this.touchStartX;
+                },
+
+                onViewerTouchEnd() {
+                    const threshold = 50; // px
+                    if (this.touchDeltaX > threshold) {
+                        this.prevImage();
+                    } else if (this.touchDeltaX < -threshold) {
+                        this.nextImage();
+                    }
+                    this.touchStartX = 0;
+                    this.touchDeltaX = 0;
                 },
                 
-                // 删除图片
-                async deleteImage(image) {
-                    if (!confirm('确定要删除这张图片吗？')) {
+                // 删除文件
+                async deleteFile(file) {
+                    if (!confirm('确定要删除这个文件吗？此操作不可恢复！')) {
                         return;
                     }
                     
                     try {
-                        const data = await this.apiCall(`/image/${image.module}/${image.filename}`, {
+                        const encodedModule = this.encodeModulePath(file.module);
+                        const data = await this.apiCall(`/file/${encodedModule}/${encodeURIComponent(file.filename)}`, {
                             method: 'DELETE'
                         });
                         
                         if (data.success) {
-                            await this.loadImages();
+                            await this.loadFiles();
                             await this.loadStats();
                             this.showSuccess('删除成功');
+                            if (this.viewingFile && this.viewingFile.filename === file.filename) {
+                                this.viewingFile = null;
+                            }
                         } else {
                             this.showError(data.message);
                         }
@@ -1197,32 +1764,197 @@
                     }
                 },
                 
+                // 下载文件
+                downloadFile(file) {
+                    const link = document.createElement('a');
+                    link.href = this.getFileUrl(file.url);
+                    link.download = file.filename;
+                    link.click();
+                },
+                
+                // 切换视图模式
+                toggleViewMode() {
+                    this.viewMode = this.viewMode === 'grid' ? 'list' : 'grid';
+                },
+                
                 // 清除缓存
                 clearCache() {
-                    this.imageCache.clear();
-                    this.loadImages();
+                    this.fileCache.clear();
+                    this.loadFiles();
                     this.showSuccess('缓存已清除');
                 },
                 
                 // 工具方法
-                getImageUrl(url) {
+                getFileUrl(url) {
                     const baseUrl = window.location.origin;
                     return url.startsWith('http') ? url : `${baseUrl}${url}`;
                 },
-                
-                getThumbnailUrl(url) {
-                    // 在实际应用中，可以在这里添加缩略图生成逻辑
-                    // 目前直接返回原图URL，但建议在后端生成缩略图
-                    return this.getImageUrl(url);
+
+                // 多选相关方法
+                toggleSelectFile(file) {
+                    const idx = this.selectedFiles.indexOf(file.filename);
+                    if (idx === -1) {
+                        this.selectedFiles.push(file.filename);
+                    } else {
+                        this.selectedFiles.splice(idx, 1);
+                    }
+                },
+
+                isSelected(file) {
+                    return this.selectedFiles.includes(file.filename);
+                },
+
+                async toggleSelectAll() {
+                    if (this.allSelected) {
+                        this.selectedFiles = [];
+                    } else {
+                        this.selectedFiles = this.filteredFiles.map(f => f.filename);
+                    }
+                },
+
+                async deleteSelectedFiles() {
+                    if (this.selectedFiles.length === 0) return this.showError('未选择任何文件');
+                    if (!confirm(`确定删除 ${this.selectedFiles.length} 个文件吗？此操作不可恢复！`)) return;
+
+                    try {
+                        // 如果后端支持批量删除接口，可调用此处。否则逐个删除。
+                        // 先尝试批量删除端点
+                        const data = await this.apiCall('/files/batch/delete', {
+                            method: 'POST',
+                            body: JSON.stringify({ module: this.currentModule, filenames: this.selectedFiles })
+                        }).catch(() => null);
+
+                        if (data && data.success) {
+                            this.showSuccess('删除成功');
+                        } else {
+                            // 回退：逐个删除
+                            for (const fname of this.selectedFiles.slice()) {
+                                try {
+                                    const encodedModule = this.encodeModulePath(this.currentModule);
+                                    const single = await this.apiCall(`/file/${encodedModule}/${encodeURIComponent(fname)}`, { method: 'DELETE' });
+                                    if (!single.success) console.warn('删除单个文件失败', fname, single.message);
+                                } catch (e) {
+                                    console.error('删除单个文件出错', fname, e);
+                                }
+                            }
+                            this.showSuccess('删除完成');
+                        }
+
+                        // 清理选择并刷新
+                        this.selectedFiles = [];
+                        await this.loadFiles();
+                        await this.loadStats();
+                    } catch (error) {
+                        console.error('批量删除失败', error);
+                        this.showError('删除失败');
+                    }
+                },
+
+                async downloadSelectedFiles() {
+                    if (this.selectedFiles.length === 0) return this.showError('未选择任何文件');
+
+                    try {
+                        // 先尝试后端批量打包下载接口（返回一个 zip 的下载链接或直接返回二进制）
+                        const baseUrl = window.location.origin;
+                        const batchResp = await fetch(`${baseUrl}/api/files/batch/download`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ module: this.currentModule, filenames: this.selectedFiles })
+                        }).catch(() => null);
+
+                        if (batchResp && batchResp.ok) {
+                            // 如果返回的是文件流，直接下载
+                            const disposition = batchResp.headers.get('Content-Disposition') || '';
+                            let filename = 'files.zip';
+                            const m = disposition.match(/filename\*=UTF-8''(.+)|filename="?([^";]+)"?/);
+                            if (m) filename = decodeURIComponent(m[1] || m[2]);
+
+                            const blob = await batchResp.blob();
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = filename;
+                            document.body.appendChild(a);
+                            a.click();
+                            a.remove();
+                            URL.revokeObjectURL(url);
+                            this.showSuccess('下载已开始');
+                            return;
+                        }
+
+                        // 回退到逐个下载（创建隐藏链接触发）
+                        const filesToDownload = this.selectedFiles.slice();
+                        for (const fname of filesToDownload) {
+                            const fileObj = this.filteredFiles.find(f => f.filename === fname) || this.files.find(f => f.filename === fname);
+                            const url = fileObj ? this.getFileUrl(fileObj.url) : `${baseUrl}/file/${this.encodeModulePath(this.currentModule)}/${encodeURIComponent(fname)}`;
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = fname;
+                            // 对于跨域的远程链接，浏览器可能阻止下载，用户可右键另存或后台实现打包
+                            document.body.appendChild(a);
+                            a.click();
+                            a.remove();
+                            await new Promise(r => setTimeout(r, 200)); // 小延迟，避免大量快速触发
+                        }
+
+                        this.showSuccess('开始下载选中文件');
+                    } catch (e) {
+                        console.error('下载失败', e);
+                        this.showError('下载失败');
+                    }
                 },
                 
-                imageLoaded(image) {
-                    image.loaded = true;
+                isImageFile(file) {
+                    return file.file_type === 'image';
                 },
                 
-                imageError(image) {
-                    image.loaded = true;
-                    // 可以设置一个默认的占位图
+                getFileIcon(fileType) {
+                    const icons = {
+                        'image': 'fas fa-image',
+                        'archive': 'fas fa-file-archive',
+                        'document': 'fas fa-file-alt',
+                        'video': 'fas fa-video',
+                        'audio': 'fas fa-music',
+                        'other': 'fas fa-file'
+                    };
+                    return icons[fileType] || icons.other;
+                },
+                
+                getFileTypeIcon(file) {
+                    if (file.type.startsWith('image/')) return 'fas fa-image';
+                    if (file.type.includes('zip') || file.type.includes('rar') || file.type.includes('tar') || file.type.includes('7z')) return 'fas fa-file-archive';
+                    if (file.type.includes('pdf') || file.type.includes('document') || file.type.includes('text')) return 'fas fa-file-alt';
+                    if (file.type.startsWith('video/')) return 'fas fa-video';
+                    if (file.type.startsWith('audio/')) return 'fas fa-music';
+                    return 'fas fa-file';
+                },
+                
+                getFileTypeName(fileType) {
+                    const names = {
+                        'image': '图片',
+                        'archive': '压缩包',
+                        'document': '文档',
+                        'video': '视频',
+                        'audio': '音频',
+                        'other': '其他文件'
+                    };
+                    return names[fileType] || names.other;
+                },
+                
+                formatFileSize(bytes) {
+                    if (bytes === 0) return '0 B';
+                    const k = 1024;
+                    const sizes = ['B', 'KB', 'MB', 'GB'];
+                    const i = Math.floor(Math.log(bytes) / Math.log(k));
+                    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                },
+                
+                fileLoaded(file) {
+                    file.loaded = true;
+                },
+                
+                fileError(file) {
+                    file.loaded = true;
                 },
                 
                 showError(message) {
@@ -1230,7 +1962,7 @@
                     this.uploadMessage = message;
                     setTimeout(() => {
                         this.uploadMessage = '';
-                    }, 3000);
+                    }, 5000);
                 },
                 
                 showSuccess(message) {
@@ -1238,17 +1970,11 @@
                     this.uploadMessage = message;
                     setTimeout(() => {
                         this.uploadMessage = '';
-                    }, 2000);
+                    }, 3000);
                 }
-            },
-            
-            beforeUnmount() {
-                // 清理事件监听器
-                if (this.handleScroll) {
-                    window.removeEventListener('scroll', this.handleScroll);
-                }
-                if (this.observer) {
-                    this.observer.disconnect();
+                ,
+                loadMoreFiles() {
+                    this.visibleCount = Math.min(this.filteredFiles.length, this.visibleCount + this.pageSize);
                 }
             }
         }).mount('#app');
